@@ -12,7 +12,7 @@
 		``` 
 		段基址放在段寄存器里，分为cs代码段 ds数据段 ss堆栈段 es扩展段 
 		```
-- ***Exercise2***: gdb si
+#### Exercise2: gdb si
 	- 0xffff0:	ljmp $0xf000, $0xe05b
 		```
 		跳转指令，跳转到后者
@@ -44,7 +44,8 @@ bios -> boot loader -> kernel
 - BootLoader必须完成的两件事
 	- 将cpu从real mode转向32-bit protected mode
 	- 通过x86 i/o指令，访问IDE磁盘设备寄存器，从磁盘中读取内核。
-- ***Exercise3***: 设置断点以追踪/boot/boot.S // boot.asm为反编译得出文件
+#### Exercise3: 设置断点以追踪boot/boot.S and boot/main.c // boot.asm为反编译得出文件
+##### Analyze boot.S
 ```
 .globl start
 start:
@@ -126,4 +127,56 @@ protcseg:
   movw    %ax, %gs                # -> GS
   movw    %ax, %ss                # -> SS: Stack Segment
 ```
-Set the data segment registers.
+Set the data segment registers.  
+After loading the GDTR Register, we must reload all of the segment registers.  
+And cs register need 'Long jump instruction'  //长跳转指令  
+Then the value of GDTR can take effect.
+```
+  # Set up the stack pointer and call into C.
+  movl    $start, %esp
+  call bootmain
+```
+Set the value of esp register, and prepare for jumping in the bootmain function.
+##### Analyze main.c
+```bootmain```
+```
+	// read 1st page off disk
+	readseg((uint32_t) ELFHDR, SECTSIZE*8, 0);
+```
+Call the ```void readseg(uint32_t, uint32_t, uint32_t);```  
+it puts the first 8\*512kb of kernel in ELFHDR(0x10000).  
+it equates with we put the head of ```elf``` in the memory.  
+```
+	// is this a valid ELF?
+	if (ELFHDR->e_magic != ELF_MAGIC)
+		goto bad;
+```
+Like the annotation said.  
+If we get a valid elf, elf->magic == ELF_MAGIC.  
+***CANNOT UNDERSTAND THE ```goto bad```***
+```
+	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
+```
+The head of ELF has Program Header Table, and phoff is its offset.  
+```
+	eph = ph + ELFHDR->e_phnum;
+```
+```e_phnum``` means the table's number of Program Header Table.  
+And then eph points the tail of the table.  
+```
+	for (; ph < eph; ph++)
+		// p_pa is the load address of this segment (as well
+		// as the physical address)
+		readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
+```
+Load every segment into the memory.  
+```ph->p_pa``` means the physics address  
+```ph->p_memsz``` means the actual size while the segment is loaded in the memory.  
+```ph->p_offset``` offset of the segment's head in the whole ELF.  
+```ph->p_filesz``` the size of segment in the ELF. Generally speaking, ```ph->p_memsz```>```ph->p_filesz```
+```
+	((void (*)(void)) (ELFHDR->e_entry))();
+```
+```e_entry``` points the entry of kernel file.  
+And then the CONTROL will be switched from boot loader to the kernel of system.  
+##### Analysis finished, and let's start tracking them.
