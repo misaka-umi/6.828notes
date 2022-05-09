@@ -260,9 +260,13 @@ Represents three different ways to access the values in an array.
 5: a[0] = 200, a[1] = 128144, a[2] = 256, a[3] = 302
 ```
 char \*pointer can store 1 byte and int \*pointer can store 4 bytes.  
-before that, c = 0x7ffee855d624  
+  
+Before that, c = 0x7ffee855d624  
+  
 now c = 0x7ffee855d625 and if we change \*c, it will influence a\[1] and a\[2].  
+  
 (if we dont let ```c = (int *) ((char *) c + 1)```,it will only influence a\[1])  
+  
 a\[1]= 400 = 0x00000190H  
 a\[2]= 301 = 0x0000012DH  
 500 = 0x000001F4
@@ -298,3 +302,62 @@ a[2]
 ```
 The difference of int pointer and char pointer.
 #### BACK TO LOAD THE KERNEL
+For purposes of 6.828, you can consider an ***ELF*** executable to be a header with ***loading information***, followed by several ***program sections***, each of which is a contiguous chunk of code or data intended to be loaded into memory at a specified address. The boot loader does not modify the code or data; it loads it into memory and starts executing it.   
+  
+An ELF binary starts with a fixed-length ELF header, followed by a variable-length program header listing each of the program sections to be loaded. The C definitions for these ELF headers are in inc/elf.h. We are interested in three sections:
+- .text: executable instructions
+- .rodata: read-only data, such as ASCII string constants produced by the C complier.
+- .data: data section holds the program's initialized data, such as global variables declared with initializers like ```int x = 5;```.
+  
+```
+umiz@umiz-ubuntu:~/6.828/lab$ objdump -h obj/kern/kernel
+
+obj/kern/kernel:     file format elf32-i386
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         000019e1  f0100000  00100000  00001000  2**4
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .rodata       000006bc  f0101a00  00101a00  00002a00  2**5
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  2 .stab         00003739  f01020bc  001020bc  000030bc  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  3 .stabstr      00001529  f01057f5  001057f5  000067f5  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  4 .data         00009300  f0107000  00107000  00008000  2**12
+                  CONTENTS, ALLOC, LOAD, DATA
+......
+```
+- VMA: address the section expects to excute.
+- LMA: memory address the section should be loaded in.
+- Typecally, VMA and LMA should be same.
+  
+  
+The boot loader uses the ELF program headers to decide how to load the sections. The program headers specify which parts of the ELF object to load into memory and the destination address each should occupy. Inspect the program headers:
+```
+objdump -x obj/kern/kernel
+```
+And we can get:
+```
+miz@umiz-ubuntu:~/6.828/lab$ objdump -x obj/kern/kernel
+
+obj/kern/kernel:     file format elf32-i386
+obj/kern/kernel
+architecture: i386, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED
+start address 0x0010000c
+
+Program Header:
+    LOAD off    0x00001000 vaddr 0xf0100000 paddr 0x00100000 align 2**12
+         filesz 0x00006d1e memsz 0x00006d1e flags r-x
+    LOAD off    0x00008000 vaddr 0xf0107000 paddr 0x00107000 align 2**12
+         filesz 0x0000b6c1 memsz 0x0000b6c1 flags rw-
+   STACK off    0x00000000 vaddr 0x00000000 paddr 0x00000000 align 2**4
+         filesz 0x00000000 memsz 0x00000000 flags rwx
+```
+The program headers are then listed under "Program Headers" in the output. The areas of the ELF object that need to be loaded into memory are those that are marked as "LOAD". Other information for each program header is given, such as the virtual address("vaddr"), the physical address("paddr"), and the size of the loaded area("memsz" and "filesz").
+##### Exercise 5: trace the first instruction that would "break" if you were to get the boot loader's link addres wrong.
+GIVE UP
+https://www.cnblogs.com/fatsheep9146/p/5216681.html
+##### Exercise 6
+### Part3: The Kernel
