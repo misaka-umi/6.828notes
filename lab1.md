@@ -180,3 +180,121 @@ Load every segment into the memory.
 ```e_entry``` points the entry of kernel file.  
 And then the CONTROL will be switched from boot loader to the kernel of system.  
 ##### Analysis finished, and let's start tracking them.
+***To be continued...***
+- Loading the Kernel
+#### Exercise4: pointers.c
+```
+gcc pointers.c -o pointers
+./pointers
+```
+AND THEN WE CAN GET
+```
+1: a = 0x7ffee855d620, b = 0x559ab64c42a0, c = 0x7ffee855dad9
+2: a[0] = 200, a[1] = 101, a[2] = 102, a[3] = 103
+3: a[0] = 200, a[1] = 300, a[2] = 301, a[3] = 302
+4: a[0] = 200, a[1] = 400, a[2] = 301, a[3] = 302
+5: a[0] = 200, a[1] = 128144, a[2] = 256, a[3] = 302
+6: a = 0x7ffee855d620, b = 0x7ffee855d624, c = 0x7ffee855d621
+```
+Let's check them one by one...
+
+
+```
+    int a[4];
+    int *b = malloc(16);
+    int *c;
+    int i;
+
+    printf("1: a = %p, b = %p, c = %p\n", a, b, c);
+-------
+1: a = 0x7ffee855d620, b = 0x559ab64c42a0, c = 0x7ffee855dad9
+```
+a = The first address of Array A  
+b = the address of pointer b
+c = the value of pointer c (?
+
+
+
+```
+    c = a;
+    for (i = 0; i < 4; i++)
+	a[i] = 100 + i;
+    c[0] = 200;
+    printf("2: a[0] = %d, a[1] = %d, a[2] = %d, a[3] = %d\n",
+	   a[0], a[1], a[2], a[3]);
+-------
+2: a[0] = 200, a[1] = 101, a[2] = 102, a[3] = 103
+```
+c = a means c = &a\[0].
+
+
+```
+    c[1] = 300;
+    *(c + 2) = 301;
+    3[c] = 302;
+    printf("3: a[0] = %d, a[1] = %d, a[2] = %d, a[3] = %d\n",
+	   a[0], a[1], a[2], a[3]);
+-------
+3: a[0] = 200, a[1] = 300, a[2] = 301, a[3] = 302
+```
+Represents three different ways to access the values in an array.
+
+
+```.
+    c = c + 1;
+    *c = 400;
+    printf("4: a[0] = %d, a[1] = %d, a[2] = %d, a[3] = %d\n",
+	   a[0], a[1], a[2], a[3]);
+-------
+4: a[0] = 200, a[1] = 400, a[2] = 301, a[3] = 302
+```
+```c=c+1;*c=400;``` means c\[1]=400.
+
+
+```
+    c = (int *) ((char *) c + 1);
+    *c = 500;
+    printf("5: a[0] = %d, a[1] = %d, a[2] = %d, a[3] = %d\n",
+	   a[0], a[1], a[2], a[3]);
+-------
+5: a[0] = 200, a[1] = 128144, a[2] = 256, a[3] = 302
+```
+char \*pointer can store 1 byte and int \*pointer can store 4 bytes.  
+before that, c = 0x7ffee855d624  
+now c = 0x7ffee855d625 and if we change \*c, it will influence a\[1] and a\[2].  
+(if we dont let ```c = (int *) ((char *) c + 1)```,it will only influence a\[1])  
+a\[1]= 400 = 0x00000190H  
+a\[2]= 301 = 0x0000012DH  
+500 = 0x000001F4
+```
+a[1]
+0x7ffee855d624 0x7ffee855d625 0x7ffee855d626 0x7ffee855d627
+90             01             00             00
+
+a[2]
+0x7ffee855d628 0x7ffee855d629 0x7ffee855d62A 0x7ffee855d62B
+2D             01             00             00
+
+CHANGE INTO
+a[1]
+0x7ffee855d624 0x7ffee855d625 0x7ffee855d626 0x7ffee855d627
+90             F4             01             00
+
+a[2]
+0x7ffee855d628 0x7ffee855d629 0x7ffee855d62A 0x7ffee855d62B
+00             01             00             00
+```
+0x0001F490 = 128144  
+0x00000100 = 256
+
+
+```
+    b = (int *) a + 1;
+    c = (int *) ((char *) a + 1);
+    printf("6: a = %p, b = %p, c = %p\n", a, b, c);
+}
+------
+6: a = 0x7ffee855d620, b = 0x7ffee855d624, c = 0x7ffee855d621
+```
+The difference of int pointer and char pointer.
+#### BACK TO LOAD THE KERNEL
